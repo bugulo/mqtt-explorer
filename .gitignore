@@ -10,6 +10,11 @@ mqtt-explorer
 # QT
 /.qmake.stash
 
+ui_*.h
+
+moc_*.cpp
+moc_*.h
+
 # Prerequisites
 *.d
 

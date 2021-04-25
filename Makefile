@@ -1,11 +1,11 @@
 all: clean build
 
 build:
-	qmake -o Makefile.qmake icp.pro
+	qmake -o Makefile.qmake Project.pro
 	make -f Makefile.qmake
 
 clean:
-	rm -rf mqtt-explorer *.o Makefile.qmake .qmake.stash doc/html doc/latex
+	rm -rf mqtt-explorer *.o ui_* moc_* Makefile.qmake .qmake.stash doc/html doc/latex
 
 doxygen:
 	doxygen doc/Doxyfile
