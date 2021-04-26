@@ -77,7 +77,21 @@
                </layout>
               </item>
               <item>
-               <widget class="QListWidget" name="listWidget"/>
+               <widget class="QPushButton" name="buttonPublishImage">
+                <property name="text">
+                 <string>Publish image</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="buttonSaveState">
+                <property name="text">
+                 <string>Save state</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QListWidget" name="topicMessageList"/>
               </item>
              </layout>
             </item>
@@ -86,7 +100,7 @@
           <item row="0" column="0">
            <layout class="QVBoxLayout" name="verticalLayout_4">
             <item>
-             <widget class="QTreeWidget" name="treeWidget">
+             <widget class="QTreeWidget" name="topicTree">
               <property name="expandsOnDoubleClick">
                <bool>false</bool>
               </property>
@@ -108,17 +122,16 @@
                 <string>Path</string>
                </property>
               </column>
-              <item>
-               <property name="text">
-                <string>&lt;root&gt;</string>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonToggleSubscribe">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Toggle selected</string>
+              </property>
              </widget>
             </item>
             <item>
@@ -130,16 +143,6 @@
                <widget class="QPushButton" name="buttonSubscribe">
                 <property name="text">
                  <string>Subscribe</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="text">
-                 <string>Unsubscribe</string>
                 </property>
                </widget>
               </item>
@@ -166,7 +169,7 @@
      <x>0</x>
      <y>0</y>
      <width>715</width>
-     <height>24</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

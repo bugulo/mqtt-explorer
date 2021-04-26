@@ -5,7 +5,7 @@ QT += core gui widgets
 # Link Eclipse Paho
 LIBS += -lpaho-mqtt3c -lpaho-mqtt3a -lpaho-mqttpp3
 
-SOURCES += src/main.cpp src/explorer.cpp
-HEADERS += src/explorer.h
+SOURCES += src/main.cpp src/explorer.cpp src/simulator.cpp
+HEADERS += src/explorer.h src/simulator.h
 
-FORMS += src/explorer.ui
+FORMS += src/widgets/explorer.ui src/widgets/preview_image.ui src/widgets/preview_string.ui

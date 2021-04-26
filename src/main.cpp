@@ -1,8 +1,4 @@
 #include <QApplication>
-#include <QLabel>
-#include <QDebug>
-
-#include "mqtt/async_client.h"
 
 #include "explorer.h"
 
