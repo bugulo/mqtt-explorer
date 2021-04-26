@@ -12,8 +12,10 @@ Explorer::Explorer(QWidget *parent) : QMainWindow(parent)
 {
     setupUi(this);
 
-    options = new mqtt::connect_options();
-    options->set_clean_session(true);
+    options = mqtt::connect_options_builder()
+        .mqtt_version(MQTTVERSION_5)
+        .clean_start(true)
+        .finalize();
 
     connect(buttonConnect, SIGNAL(clicked()), this, SLOT(connectClicked()));
     connect(buttonDisconnect, SIGNAL(clicked()), this, SLOT(disconnectClicked()));
@@ -34,7 +36,36 @@ void Explorer::treeItemClicked(QModelIndex index)
 
 void Explorer::subscribeClicked()
 {
-    if(treeWidget->selectedItems().count() == 0)
+    auto path = inputSubscribeTopic->text().split("/", Qt::SkipEmptyParts);
+
+    if(path.count() == 0)
+    {
+        statusBar()->showMessage("Unknown topic path format", 3000);
+        return;
+    }
+
+    auto current = treeWidget->invisibleRootItem();
+    for(auto topic : path)
+    {
+        qDebug() << topic;
+        for(auto i = 0; i < current->childCount(); i++)
+        {
+            qDebug() << i;
+            if(current->child(i)->text(0) == topic)
+            {
+                statusBar()->showMessage("This topic already exists", 3000);
+                return;
+            }
+        }
+
+        auto item = new QTreeWidgetItem();
+        item->setText(0, topic);
+        current->addChild(item);
+        current->setExpanded(true);
+    }
+
+
+    /*if(treeWidget->selectedItems().count() == 0)
     {
         statusBar()->showMessage("Select node before subscribing!");
         return;
@@ -57,7 +88,7 @@ void Explorer::subscribeClicked()
     selected->addChild(item);
     selected->setExpanded(true);
 
-    client->subscribe(path.remove(0, 1).toStdString(), 1);
+    client->subscribe(path.remove(0, 1).toStdString(), 1);*/
 }
 
 void Explorer::publishClicked()
@@ -78,13 +109,13 @@ void Explorer::connectClicked()
     inputServerAddress->setEnabled(false);
     buttonConnect->setEnabled(false);
 
-    client = new mqtt::async_client(this->inputServerAddress->text().toStdString(), QUuid::createUuid().toString().toStdString());
+    client = new mqtt::async_client(this->inputServerAddress->text().toStdString(), QUuid::createUuid().toString().toStdString(), mqtt::create_options(MQTTVERSION_5));
     client->set_message_callback(std::bind(&Explorer::message_received, this, std::placeholders::_1));
 
     try
     {
         statusBar()->showMessage("Connecting to server...");
-        client->connect(*options)->wait();
+        client->connect(options)->wait();
     }
     catch(const std::exception& e)
     {
@@ -124,19 +155,4 @@ void Explorer::message_received(mqtt::const_message_ptr message)
         return;
 
     items[0]->setText(1, data);
-}
-
-std::string Explorer::generate_id()
-{
-    static const std::string allowed_chars {"123456789BCDFGHJKLMNPQRSTVWXZbcdfghjklmnpqrstvwxz"};
-
-    static thread_local std::default_random_engine randomEngine(std::random_device{}());
-    static thread_local std::uniform_int_distribution<int> randomDistribution(0, allowed_chars.size() - 1);
-
-    std::string id(32, '\0');
-
-    for (std::string::value_type& c : id)
-        c = allowed_chars[randomDistribution(randomEngine)];
-
-    return id;
 }

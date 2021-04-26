@@ -10,6 +10,13 @@
 
 #include "mqtt/async_client.h"
 
+class Topic
+{
+public:
+    QList<std::string> messages;
+    bool isSubscribed = false;
+};
+
 class Explorer : public QMainWindow, public Ui::Explorer
 {
     Q_OBJECT
@@ -28,9 +35,7 @@ private:
     Ui::Explorer *ui;
 
     mqtt::async_client *client;
-    mqtt::connect_options *options;
-
-    std::string generate_id();
+    mqtt::connect_options options;
 
     void message_received(mqtt::const_message_ptr message);
 };
