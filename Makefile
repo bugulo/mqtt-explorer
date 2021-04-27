@@ -5,7 +5,7 @@ build:
 	make -f Makefile.qmake
 
 clean:
-	rm -rf mqtt-explorer *.o ui_* moc_* Makefile.qmake .qmake.stash doc/html doc/latex
+	rm -rf mqtt-explorer *.o ui_* moc_* qrc_*.cpp Makefile.qmake .qmake.stash doc/html doc/latex
 
 doxygen:
 	doxygen doc/Doxyfile

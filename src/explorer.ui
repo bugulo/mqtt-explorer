@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>715</width>
-    <height>524</height>
+    <width>788</width>
+    <height>565</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -93,6 +93,13 @@
               <item>
                <widget class="QListWidget" name="topicMessageList"/>
               </item>
+              <item>
+               <widget class="QPushButton" name="buttonToggleSimulator">
+                <property name="text">
+                 <string>Start simulator on this server</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </item>
            </layout>
@@ -137,6 +144,13 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_5">
               <item>
+               <widget class="QCheckBox" name="checkboxRelative">
+                <property name="text">
+                 <string>Relative to selected topic</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QLineEdit" name="inputSubscribeTopic"/>
               </item>
               <item>
@@ -155,9 +169,85 @@
        </layout>
       </widget>
       <widget class="QWidget" name="tab_12">
+       <property name="layoutDirection">
+        <enum>Qt::LeftToRight</enum>
+       </property>
        <attribute name="title">
         <string>Dashboard</string>
        </attribute>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="QComboBox" name="selectWidgetType">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>1</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <item>
+               <property name="text">
+                <string>Light Switch</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonAddWidget">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Add widget</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QPushButton" name="buttonLoadDashboard">
+              <property name="text">
+               <string>Load dashboard from file</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonSaveDashboard">
+              <property name="text">
+               <string>Save dashboard to file</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QScrollArea" name="scrollArea">
+            <property name="widgetResizable">
+             <bool>true</bool>
+            </property>
+            <widget class="QWidget" name="scrollAreaWidgetContents_2">
+             <property name="geometry">
+              <rect>
+               <x>0</x>
+               <y>0</y>
+               <width>742</width>
+               <height>365</height>
+              </rect>
+             </property>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -168,7 +258,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>715</width>
+     <width>788</width>
      <height>21</height>
     </rect>
    </property>
