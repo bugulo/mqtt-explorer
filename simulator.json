@@ -1,0 +1,12 @@
+{
+    "topics" : [
+        {
+            "name": "test",
+            "period": 3,
+            "messages": [
+                { "type": "string", "content": "ratemal" },
+                { "type": "file", "content": "\/home\/bug/download.jpg" }
+            ]
+        }
+    ]
+}

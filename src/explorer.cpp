@@ -26,6 +26,7 @@
 
 #include "widgets/widget.h"
 #include "simulator.h"
+#include "client.h"
 
 const int MAX_MESSAGES = 5;
 
@@ -33,11 +34,12 @@ Explorer::Explorer(QWidget *parent) : QMainWindow(parent)
 {
     setupUi(this);
 
-    options = mqtt::connect_options_builder()
-        .mqtt_version(MQTTVERSION_5)
-        //.connect_timeout(5)
-        .clean_start(true)
-        .finalize();
+    qRegisterMetaType<DisconnectReason>();
+
+    client = new Client(this);
+
+    connect(client, &Client::disconnected, this, &Explorer::onClientDisconnected, Qt::QueuedConnection);
+    connect(client, &Client::receivedMessage, this, &Explorer::onReceivedMessage, Qt::QueuedConnection);
 
     // Setup button click events
     connect(buttonSubscribe,        SIGNAL(clicked()), this, SLOT(onSubscribeButtonClicked()));
@@ -65,6 +67,8 @@ Explorer::Explorer(QWidget *parent) : QMainWindow(parent)
     simulator = new Simulator(this);
     //simulator->start("test.mosquitto.org:1883");
 
+    //connect(simulator, SIGNAL(connectionLost()), this, SLOT(onSimulatorLostConnection()));
+
     //verticalLayout_3->setAlignment(Qt::AlignTop);
     flowLayout = new FlowLayout();
     scrollAreaWidgetContents_2->setLayout(flowLayout);
@@ -81,26 +85,18 @@ void Explorer::onConnectButtonClicked()
 {
     topicTree->clear();
     // Reset state of some buttons as topic needs to be selected before being able to push those buttons
-    buttonToggleSimulator->setText("Start simulator on this server");
-    inputPublishMessage->setEnabled(false);
-    buttonToggleSubscribe->setEnabled(false);
-    buttonPublishImage->setEnabled(false);
-    buttonPublish->setEnabled(false);
+    //buttonToggleSimulator->setText("Start simulator on this server");
+    //inputPublishMessage->setEnabled(false);
+    //buttonToggleSubscribe->setEnabled(false);
+    //buttonPublishImage->setEnabled(false);
+    //buttonPublish->setEnabled(false);
 
-    // Create client instance with unique ID
-    client = new mqtt::async_client(this->inputServerAddress->text().toStdString(), QUuid::createUuid().toString().toStdString(), mqtt::create_options(MQTTVERSION_5));
-    // Register callbacks
-    client->set_message_callback(std::bind(&Explorer::onMessageReceived, this, std::placeholders::_1));
-    client->set_connection_lost_handler(std::bind(&Explorer::onConnectionLost, this, std::placeholders::_1));
-    client->set_disconnected_handler(std::bind(&Explorer::onDisconnected, this, std::placeholders::_1, std::placeholders::_2));
+    address = this->inputServerAddress->text();
 
-    try {
-        setStatus("Connecting to server...", 0);
-        client->connect(options)->wait();
-    }
-    catch(const std::exception& e) {
-        setStatus("Could not connect to this server", 3);
-        delete client;
+    setStatus("Connecting to server...");
+    if(!client->connect(address))
+    {
+        setStatus("Could not connect to this server");
         return;
     }
 
@@ -108,58 +104,82 @@ void Explorer::onConnectButtonClicked()
     buttonDisconnect->setEnabled(true);
     inputServerAddress->setEnabled(false);
     tabWidget->setEnabled(true);
-    setStatus("Successfuly connected to server!", 3);
+    setStatus("Successfuly connected to server");
 }
 
-void Explorer::onMessageReceived(mqtt::const_message_ptr message)
+void Explorer::onReceivedMessage(QString topic, QByteArray data, bool local)
 {
-    auto topic = QString::fromStdString(message->get_topic());
-
-    // Retrieve payload as raw bytes
-    auto data = QByteArray::fromRawData(message->get_payload().data(), message->get_payload().length());
+    //QPixmap pixmap;
+    //QVariant variant = (pixmap.loadFromData(data) ? pixmap : QString(data));
 
     // Only binary type that is supported is image, so try to parse it and it
     // If it is not image, create string from the data
+    QVariant variant;
     QPixmap pixmap;
     if(pixmap.loadFromData(data))
-        processTopicMessage(topic, pixmap);
+        variant = pixmap;
     else
-        processTopicMessage(topic, QString::fromStdString(message->to_string()));
+        variant = QString(data);
+
+    // Try to find topic in topic tree
+    auto searchResult = topicTree->findItems(topic, Qt::MatchExactly|Qt::MatchCaseSensitive|Qt::MatchRecursive, 2);
+    
+    if(searchResult.count() == 0)
+        return;
+
+    auto treeTopicItem = searchResult[0];
+
+    auto topicData = getTopicData(treeTopicItem);
+
+    // Only string and image type is supported
+    if(variant.userType() == QMetaType::QString)
+        treeTopicItem->setText(1, qvariant_cast<QString>(variant));
+    else if(variant.userType() == QMetaType::QPixmap)
+        treeTopicItem->setText(1, "(Image)");
+    else 
+        return;
+
+    // Set color based on the sender of message (1) us (2) anyone else
+    auto color = local ? QColor(255, 255, 0, 127) : QColor(0, 0, 0, 0);
+    treeTopicItem->setBackgroundColor(1, color);
+
+    if(topicData.messages.length() >= MAX_MESSAGES)
+        topicData.messages.pop_back();
+
+    topicData.messages.prepend(std::make_tuple(variant, local, QDateTime::currentDateTime()));
+    setTopicData(treeTopicItem, topicData);
+
+    emit messageReceived(topic, variant, local);
+
+    // Reload message list if this topic is currently selected
+    auto selected = getSelectedTopic();
+    if(selected != NULL && selected == treeTopicItem)
+        reloadMessageList();
 }
 
-void Explorer::onConnectionLost([[maybe_unused]] mqtt::string reason)
+void Explorer::onClientDisconnected(DisconnectReason reason)
 {
-    delete client;
+    if(reason == DisconnectReason::TerminatedByUser)
+        return;
+        
     buttonConnect->setEnabled(true);
     buttonDisconnect->setEnabled(false);
     inputServerAddress->setEnabled(true);
     tabWidget->setEnabled(false);
-    emit disconnected();
-    setStatus("Connection to the server was lost", 3);
-}
-
-void Explorer::onDisconnected([[maybe_unused]] mqtt::properties properties, [[maybe_unused]] mqtt::ReasonCode reasonCode)
-{
-    delete client;
-    buttonConnect->setEnabled(true);
-    buttonDisconnect->setEnabled(false);
-    inputServerAddress->setEnabled(true);
-    tabWidget->setEnabled(false);
-    emit disconnected();
-    setStatus("Connection was closed by the server", 3);
+    //emit disconnected();
+    setStatus("Connection to the server was lost");
 }
 
 void Explorer::onDisconnectButtonClicked()
 {
-    client->disconnect()->wait();
-    delete client;
+    client->disconnect();
 
     buttonConnect->setEnabled(true);
     buttonDisconnect->setEnabled(false);
     inputServerAddress->setEnabled(true);
     tabWidget->setEnabled(false);
-    emit disconnected();
-    setStatus("Successfuly disconnected from server!", 3);
+    //emit disconnected();
+    setStatus("Successfuly disconnected from server!");
 }
 
 void Explorer::onSubscribeButtonClicked()
@@ -246,7 +266,8 @@ int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
     setTopicData(current, topicData);
 
     // Subscribe to this topic
-    client->subscribe(current->text(2).toStdString(), 1, mqtt::subscribe_options(true))->wait();
+    //client->subscribe(current->text(2).toStdString(), 1, mqtt::subscribe_options(true))->wait();
+    client->subscribe(current->text(2));
 
     // Make topic name blue so we can easily see which topics are subscribed
     current->setForeground(0, QBrush(Qt::blue));
@@ -256,9 +277,10 @@ int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
 void Explorer::publishData(QString topic, QString data)
 {
     // Publish text to server as string
-    client->publish(topic.toStdString(), data.toStdString());
+    //client->publish(topic.toStdString(), data.toStdString());
+    client->publish(topic, data);
     // This message won't be received by our client, process it manually
-    processTopicMessage(topic, data, true);
+    //processTopicMessage(topic, data, true);
 }
 
 void Explorer::setTopicData(QTreeWidgetItem* item, TopicData data)
@@ -360,7 +382,8 @@ void Explorer::onToggleButtonClicked()
     if(topicData.isSubscribed)
     {
         topicData.isSubscribed = false;
-        client->unsubscribe(selected->text(2).toStdString());
+        //client->unsubscribe(selected->text(2).toStdString());
+        client->unsubscribe(selected->text(2));
         setStatus("Topic unsubscribed", 3);
         // Make topic name black so we can easily see which topics are unsubscribed
         selected->setForeground(0, QBrush(Qt::black));
@@ -369,7 +392,8 @@ void Explorer::onToggleButtonClicked()
     else 
     {
         topicData.isSubscribed = true;
-        client->subscribe(selected->text(2).toStdString(), 1, mqtt::subscribe_options(true));
+        //client->subscribe(selected->text(2).toStdString(), 1, mqtt::subscribe_options(true));
+        client->subscribe(selected->text(2));
         setStatus("Topic subscribed", 3);
         // Make topic name blue so we can easily see which topics are subscribed
         selected->setForeground(0, QBrush(Qt::blue));
@@ -377,44 +401,6 @@ void Explorer::onToggleButtonClicked()
 
     setTopicData(selected, topicData);
     reloadToggleButton();
-}
-
-void Explorer::processTopicMessage(QString topic, QVariant data, bool local)
-{
-    // Try to find topic in topic tree
-    auto searchResult = topicTree->findItems(topic, Qt::MatchExactly|Qt::MatchCaseSensitive|Qt::MatchRecursive, 2);
-    
-    if(searchResult.count() == 0)
-        return;
-
-    auto treeTopicItem = searchResult[0];
-
-    auto topicData = getTopicData(treeTopicItem);
-
-    // Only string and image type is supported
-    if(data.userType() == QMetaType::QString)
-        treeTopicItem->setText(1, qvariant_cast<QString>(data));
-    else if(data.userType() == QMetaType::QPixmap)
-        treeTopicItem->setText(1, "(Image)");
-    else 
-        return;
-
-    // Set color based on the sender of message (1) us (2) anyone else
-    auto color = local ? QColor(255, 255, 0, 127) : QColor(0, 0, 0, 0);
-    treeTopicItem->setBackgroundColor(1, color);
-
-    if(topicData.messages.length() >= MAX_MESSAGES)
-        topicData.messages.pop_back();
-
-    topicData.messages.prepend(std::make_tuple(data, local, QDateTime::currentDateTime()));
-    setTopicData(treeTopicItem, topicData);
-
-    emit messageReceived(topic, data, local);
-
-    // Reload message list if this topic is currently selected
-    auto selected = getSelectedTopic();
-    if(selected != NULL && selected == treeTopicItem)
-        reloadMessageList();
 }
 
 void Explorer::onMessageDoubleClicked(QListWidgetItem* item)
@@ -457,10 +443,11 @@ void Explorer::onPublishButtonClicked()
     auto path = selected->text(2);
 
     // Publish text to server as string
-    client->publish(path.toStdString(), inputPublishMessage->text().toStdString());
+    //client->publish(path.toStdString(), inputPublishMessage->text().toStdString());
+    client->publish(path, inputPublishMessage->text());
 
     // This message won't be received by our client, process it manually
-    processTopicMessage(path, inputPublishMessage->text(), true);
+    //processTopicMessage(path, inputPublishMessage->text(), true);
 
     // Clear input
     inputPublishMessage->setText("");
@@ -498,10 +485,11 @@ void Explorer::onPublishImageButtonClicked()
     }
 
     // Publish image to server as raw bytes
-    client->publish(selected->text(2).toStdString(), data.data(), data.size());
+    //client->publish(selected->text(2).toStdString(), data.data(), data.size());
+    client->publish(selected->text(2), data);
 
     // This message won't be received by our client, process it manually
-    processTopicMessage(selected->text(2), image, true);
+    //processTopicMessage(selected->text(2), image, true);
 }
 
 void Explorer::onSaveStateButtonClicked()
@@ -572,18 +560,25 @@ void Explorer::onSaveStateButtonClicked()
     }
 }
 
+// SIMULATOR
+
 void Explorer::onToggleSimulatorButtonClicked()
 {
     if(!simulator->isRunning())
     {
-        simulator->start(client->get_server_uri());
-        buttonToggleSimulator->setText("Stop simulator");
+        if(simulator->start(address))
+            buttonToggleSimulator->setText("Stop simulator");
     }
     else
     {
         simulator->stop();
         buttonToggleSimulator->setText("Start simulator on this server");
     }
+}
+
+void Explorer::onSimulatorLostConnection()
+{
+    buttonToggleSimulator->setText("Start simulator on this server");
 }
 
 // DASHBOARD

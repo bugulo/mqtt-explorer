@@ -1,111 +1,161 @@
+/*!
+ * @file simulator.cpp
+ * @author Michal Šlesár (xslesa01)
+ * @author Erik Belko (xbelko02)
+ * @brief Implementation of Simulator
+ */
+
 #include "simulator.h"
 
 #include <random>
 
-#include <QDebug>
 #include <QUuid>
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <QObject>
+#include <QDateTime>
+#include <QMetaType>
 #include <QJsonArray>
-#include <QPointF>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonValueRef>
 
-Simulator::Simulator(Explorer *explorer) : QObject(explorer)
+#include "mqtt/async_client.h"
+
+#include "utils.h"
+#include "client.h"
+#include "explorer.h"
+
+Simulator::Simulator(Explorer *explorer) : QObject(explorer), explorer(explorer)
 {
-    options = mqtt::connect_options_builder()
-        .mqtt_version(MQTTVERSION_5)
-        //.connect_timeout(5)
-        .clean_start(true)
-        .finalize();
+    client = new Client(this);
 
-    connect(&timerMain, SIGNAL(timeout()), this, SLOT(update()));
-    connect(explorer, SIGNAL(disconnected()), this, SLOT(disconnected()));
+    connect(&updateTimer, SIGNAL(timeout()), this, SLOT(onTimeout()));
+    //connect(explorer, SIGNAL(disconnected()), this, SLOT(onExplorerDisconnected()));
 
-    this->explorer = explorer;
+    connect(client, SIGNAL(disconnected(DisconnectReason)), this, SLOT(onClientDisconnected(DisconnectReason)), Qt::BlockingQueuedConnection);
+}
 
-    auto file = QFile("./simulator.json");
-    if(!file.open(QIODevice::ReadOnly|QIODevice::Text))
+bool Simulator::loadConfiguration()
+{
+    auto data = Utils::loadFile(explorer, "Load simulator configuration", "All files (*)");
+
+    auto document = QJsonDocument::fromJson(data);
+    if (document.isNull()) 
     {
-        explorer->setStatus("[Simulator] Configuration file not found");
-        return;
+        explorer->setStatus("Failed to parse configuration file");
+        return false;
     }
 
-    QByteArray data = file.readAll();
-    file.close();
+    // Result of topics parse
+    // We check this variable after iteration and delete all parsed topics if failed
+    auto parseResult = true;
 
-    QJsonParseError errorPtr;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &errorPtr);
-    if (doc.isNull()) {
-        explorer->setStatus("[Simulator] Could not parse JSON file");
-        return;
-    }
-
-    auto messages = doc.object().value("messages").toArray();
-    foreach(const QJsonValue & message, messages)
+    auto topicArray = document.object().value("topics").toArray();
+    for(auto topicItem : topicArray)
     {
-        auto msg = new Message();
-        msg->topic = message.toObject().value("topic").toString();
-        msg->timeout = message.toObject().value("timeout").toInt(1000);
+        auto topic = new SimulatorTopic();
+        topic->name = topicItem.toObject().value("name").toString();
+        topic->period = topicItem.toObject().value("period").toInt();
 
-        qDebug() << msg->topic;
-        qDebug() << msg->timeout;
-
-        auto options = message.toObject().value("options").toArray();
-        foreach(const QJsonValue & option, options)
+        // Topic with empty name or negative period would break things
+        if(topic->name.isEmpty() || topic->period < 1)
         {
-            QString type = option.toObject().value("type").toString();
-            QString content = option.toObject().value("content").toString();
+            parseResult = false;
+            break;
+        }
 
+        auto messageArray = topicItem.toObject().value("messages").toArray();
+        for(auto messageItem : messageArray)
+        {
+            auto type = messageItem.toObject().value("type").toString();
+            auto content = messageItem.toObject().value("content").toString();
+
+            // Message type is string, we can append it as it is
             if(type == "string")
-                msg->options.append(content);
+                topic->messages.append(content);
+            // Message type is file, we need to load contents of that file before appending
             else if(type == "file")
+                topic->messages.append(Utils::readFile(content));
+            // Only string and file types are supported
+            else 
             {
-                auto imageFile = QFile(content);
-                
-                if(!imageFile.open(QIODevice::ReadOnly))
-                {
-                    explorer->setStatus("[Simulator] Failed to read file of provided image");
-                    return;
-                }
-
-                auto imageData = imageFile.readAll();
-                imageFile.close();
-                msg->options.append(imageData);
-            }
-            else
-            {
-                explorer->setStatus("[Simulator] Unknow option type");
+                parseResult = false;
+                break;
             }
         }
 
-        registeredMessages.append(msg);
+        if(!parseResult)
+            break;
+
+        topics.append(topic);
     }
+
+    if(!parseResult)
+    {
+        explorer->setStatus("Failed to parse configuration file");
+
+        // Delete all topics that were parsed successfuly
+        for(auto topic : topics)
+            delete topic;
+
+        return false;
+    }
+
+    return true;
 }
 
-void Simulator::disconnected()
-{
-    stop();
-}
-
-bool Simulator::start(mqtt::string address)
+bool Simulator::start(QString address)
 {
     if(running)
         return false;
 
-    client = new mqtt::async_client(address, QUuid::createUuid().toString().toStdString(), mqtt::create_options(MQTTVERSION_5));
-
-    try {
-        client->connect(options)->wait();
+    // Prompt user to select configuration file when the Simulator is first started
+    if(!loaded)
+    {
+        if(loadConfiguration())
+            loaded = true;
+        else
+            return false;
     }
-    catch(const std::exception& e) {
-        delete client;
+
+    if(!client->connect(address))
+    {
+        explorer->setStatus("Simulator failed to connect to the server");
         return false;
     }
 
     running = true;
 
-    timerMain.start(1000);
+    updateTimer.start(1000);
     explorer->setStatus("Simulator started!");
+    return true;
+}
+
+void Simulator::onTimeout()
+{
+    for(auto topic : topics)
+    {
+        // Ignore topics that Simulator already published to in this period 
+        if(topic->lastSendTime.addSecs(topic->period) > QDateTime::currentDateTime())
+            continue;
+
+        // Create random number generator
+        std::random_device device;
+        std::mt19937 generator(device());
+        std::uniform_int_distribution<> distribution(0, topic->messages.count() - 1);
+
+        // Select random message from provided list
+        auto message = topic->messages[(int) distribution(generator)];
+
+        // Only string and ByteArray types are supported
+        if(message.userType() == QMetaType::QString)
+            client->publish(topic->name, qvariant_cast<QString>(message));
+        else if(message.userType() == QMetaType::QByteArray)
+            client->publish(topic->name, qvariant_cast<QByteArray>(message));
+        else 
+            continue;
+
+        topic->lastSendTime = QDateTime::currentDateTime();
+    }
 }
 
 void Simulator::stop()
@@ -113,12 +163,25 @@ void Simulator::stop()
     if(!running)
         return;
 
-    timerMain.stop();
-
-    client->disconnect()->wait();
-
     running = false;
+    updateTimer.stop();
+
+    // Disconnect MQTT client and delete it
+    client->disconnect();
     explorer->setStatus("Simulator stopped!");
+}
+
+void Simulator::onClientDisconnected([[maybe_unused]] DisconnectReason reason)
+{
+    stop();
+
+    if(reason != DisconnectReason::TerminatedByUser)
+        emit crashed();
+}
+
+void Simulator::onExplorerDisconnected()
+{
+    stop();
 }
 
 bool Simulator::isRunning()
@@ -126,31 +189,9 @@ bool Simulator::isRunning()
     return running;
 }
 
-void Simulator::update()
+Simulator::~Simulator()
 {
-    for(auto message : registeredMessages)
-    {
-        qDebug() << message->lastRun;
-        qDebug() << QDateTime::currentDateTime();
-        if(message->lastRun.addSecs(message->timeout) <= QDateTime::currentDateTime())
-        {
-            std::random_device rd; // obtain a random number from hardware
-            std::mt19937 gen(rd()); // seed the generator
-            std::uniform_int_distribution<> distr(0, message->options.count() - 1); // define the range
-
-            auto option = (int) distr(gen);
-
-            auto selected = message->options[option];
-
-            if(selected.userType() == QMetaType::QString)
-                client->publish(message->topic.toStdString(), qvariant_cast<QString>(selected).toStdString());
-            else if(selected.userType() == QMetaType::QByteArray)
-            {
-                auto data = qvariant_cast<QByteArray>(selected);
-                client->publish(message->topic.toStdString(), data.data(), data.size());
-            }
-
-            message->lastRun = QDateTime::currentDateTime();
-        }
-    }
+    delete client;
+    for(auto topic : topics)
+        delete topic;
 }

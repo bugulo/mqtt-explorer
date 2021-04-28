@@ -7,6 +7,8 @@ LIBS += -lpaho-mqtt3c -lpaho-mqtt3a -lpaho-mqttpp3
 
 SOURCES += \
     src/main.cpp \
+    src/utils.cpp \
+    src/client.cpp \
     src/explorer.cpp \
     src/simulator.cpp \
     src/widgets/widget.cpp \
@@ -14,6 +16,8 @@ SOURCES += \
     src/extensions/QFlowLayout.cpp 
 
 HEADERS += \
+    src/utils.h \
+    src/client.h \
     src/explorer.h \
     src/simulator.h \
     src/widgets/widget.h \ 

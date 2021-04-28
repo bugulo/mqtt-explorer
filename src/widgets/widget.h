@@ -6,15 +6,6 @@
 #include "../explorer.h"
 
 class Explorer;
-class Widget;
-
-struct IWidgetFactory { virtual Widget* create(Explorer* explorer) = 0; };
-
-template<typename Type> struct WidgetFactory : public IWidgetFactory {
-   virtual Type* create(Explorer* explorer) {
-      return new Type(explorer);
-   }
-};
 
 class Widget : public QWidget 
 {

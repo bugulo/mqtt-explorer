@@ -10,6 +10,7 @@
 
 #include "widgets/widget.h"
 #include "simulator.h"
+#include "client.h"
 
 class TopicData
 {
@@ -21,10 +22,22 @@ public:
 
 Q_DECLARE_METATYPE(TopicData);
 
+// Forward declarations
+class Client;
 class Widget;
+class Explorer;
 class Simulator;
 class FlowLayout;
-struct IWidgetFactory;
+
+//! Helper for WidgetFactory functionality
+struct IWidgetFactory { virtual Widget* create(Explorer* explorer) = 0; };
+
+//! Widget factory wrapper
+template<typename Type> struct WidgetFactory : public IWidgetFactory {
+   virtual Type* create(Explorer* explorer) {
+      return new Type(explorer);
+   }
+};
 
 class Explorer : public QMainWindow, public Ui::Explorer
 {
@@ -56,6 +69,11 @@ private slots:
 
     void onAddWidgetButtonClicked();
 
+    void onSimulatorLostConnection();
+
+    void onReceivedMessage(QString topic, QByteArray data, bool local);
+    void onClientDisconnected(DisconnectReason reason);
+
 signals:
     void messageReceived(QString topic, QVariant data, bool local);
     void disconnected();
@@ -63,12 +81,16 @@ signals:
 private:
     Ui::Explorer *ui;
 
-    mqtt::async_client *client;
-    mqtt::connect_options options;
+    QString address;
 
-    void onDisconnected(mqtt::properties properties, mqtt::ReasonCode reasonCode);
-    void onConnectionLost(mqtt::string reason);
-    void onMessageReceived(mqtt::const_message_ptr message);
+    Client *client;
+
+    //mqtt::async_client *client;
+    //mqtt::connect_options options;
+
+    //void onDisconnected(mqtt::properties properties, mqtt::ReasonCode reasonCode);
+    //void onConnectionLost(mqtt::string reason);
+    //void onMessageReceived(mqtt::const_message_ptr message);
 
     void setTopicData(QTreeWidgetItem* item, TopicData data);
     TopicData getTopicData(QTreeWidgetItem* item);
@@ -78,7 +100,7 @@ private:
 
     QTreeWidgetItem* getSelectedTopic();
 
-    void processTopicMessage(QString topic, QVariant data, bool local = false);
+    //void processTopicMessage(QString topic, QVariant data, bool local = false);
 
     Simulator *simulator;
 
