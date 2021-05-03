@@ -11,7 +11,7 @@ doxygen:
 	doxygen doc/Doxyfile
 
 pack:
-	zip -r 1-xslesa01-xbelko02.zip Makefile README.txt icp.pro src examples doc/Doxyfile
+	zip -r 1-xslesa01-xbelko02.zip Makefile README.txt Project.pro Resources.qrc demo_*.gif src examples doc/Doxyfile
 
 run: all
 	./mqtt-explorer

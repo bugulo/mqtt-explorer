@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>LightSwitchWidget</class>
- <widget class="QWidget" name="LightSwitchWidget">
+ <class>LcdDisplayWidget</class>
+ <widget class="QWidget" name="LcdDisplayWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>290</width>
+    <width>331</width>
     <height>123</height>
    </rect>
   </property>
@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Light Switch</string>
+   <string>LCD Display</string>
   </property>
   <property name="styleSheet">
    <string notr="true"/>
@@ -104,11 +104,8 @@
             <height>50</height>
            </size>
           </property>
-          <property name="text">
-           <string/>
-          </property>
           <property name="pixmap">
-           <pixmap resource="../../../Resources.qrc">:/src/resources/icons/light_bulb.png</pixmap>
+           <pixmap resource="../../../Resources.qrc">:/src/resources/icons/screen.png</pixmap>
           </property>
           <property name="scaledContents">
            <bool>true</bool>
@@ -118,33 +115,27 @@
         <item>
          <layout class="QFormLayout" name="formLayout">
           <property name="horizontalSpacing">
-           <number>20</number>
+           <number>30</number>
           </property>
           <item row="0" column="0">
            <widget class="QLabel" name="label_2">
             <property name="text">
-             <string>Status:</string>
+             <string>Screen text:</string>
             </property>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QLabel" name="labelStatus">
+           <widget class="QLabel" name="labelScreenText">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>100</width>
-              <height>10</height>
-             </size>
-            </property>
             <property name="maximumSize">
              <size>
-              <width>100</width>
-              <height>10</height>
+              <width>136</width>
+              <height>13</height>
              </size>
             </property>
             <property name="text">
@@ -153,30 +144,24 @@
            </widget>
           </item>
           <item row="1" column="0">
-           <widget class="QLabel" name="label_4">
+           <widget class="QLabel" name="label_3">
             <property name="text">
              <string>Last updated:</string>
             </property>
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QLabel" name="labelDate">
+           <widget class="QLabel" name="labelLastUpdated">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>100</width>
-              <height>10</height>
-             </size>
-            </property>
             <property name="maximumSize">
              <size>
-              <width>100</width>
-              <height>10</height>
+              <width>136</width>
+              <height>13</height>
              </size>
             </property>
             <property name="text">
@@ -185,9 +170,16 @@
            </widget>
           </item>
           <item row="2" column="0">
-           <widget class="QPushButton" name="buttonToggleSwitch">
+           <widget class="QPushButton" name="buttonUpdateText">
             <property name="text">
-             <string>Toggle switch</string>
+             <string>Update</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="inputScreenText">
+            <property name="placeholderText">
+             <string>Text</string>
             </property>
            </widget>
           </item>

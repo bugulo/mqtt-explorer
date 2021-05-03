@@ -1,0 +1,141 @@
+{
+    "topics" : [
+        {
+            "name": "example/dashboard/thermostat",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "20" },
+                { "type": "string", "content": "21" },
+                { "type": "string", "content": "22" },
+                { "type": "string", "content": "23" },
+                { "type": "string", "content": "24" },
+                { "type": "string", "content": "25" }
+            ]
+        },
+        {
+            "name": "example/dashboard/display",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "Hello!" },
+                { "type": "string", "content": "World!" },
+                { "type": "string", "content": "Hello world!" },
+                { "type": "string", "content": "Goodbye!" }
+            ]
+        },
+        {
+            "name": "example/dashboard/light",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "on" },
+                { "type": "string", "content": "off" }
+            ]
+        },
+        {
+            "name": "example/dashboard/camera",
+            "period": 2,
+            "messages": [
+                { "type": "file", "content": "./examples/camera_image.jpg" }
+            ]
+        },
+        {
+            "name": "example/sensors/thermometer1",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "20" },
+                { "type": "string", "content": "21" },
+                { "type": "string", "content": "22" },
+                { "type": "string", "content": "23" },
+                { "type": "string", "content": "24" },
+                { "type": "string", "content": "25" }
+            ]
+        },
+        {
+            "name": "example/sensors/thermometer2",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "20" },
+                { "type": "string", "content": "21" },
+                { "type": "string", "content": "22" },
+                { "type": "string", "content": "23" },
+                { "type": "string", "content": "24" },
+                { "type": "string", "content": "25" }
+            ]
+        },
+        {
+            "name": "example/sensors/wattmeter1",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "70" },
+                { "type": "string", "content": "80" },
+                { "type": "string", "content": "90" },
+                { "type": "string", "content": "100" },
+                { "type": "string", "content": "110" },
+                { "type": "string", "content": "120" }
+            ]
+        },
+        {
+            "name": "example/sensors/wattmeter2",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "70" },
+                { "type": "string", "content": "80" },
+                { "type": "string", "content": "90" },
+                { "type": "string", "content": "100" },
+                { "type": "string", "content": "110" },
+                { "type": "string", "content": "120" }
+            ]
+        },
+        {
+            "name": "example/sensors/movement",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "{\"object\": \"animal\", \"duration\": \"10\"}" },
+                { "type": "string", "content": "{\"object\": \"animal\", \"duration\": \"4\"}" },
+                { "type": "string", "content": "{\"object\": \"human\", \"duration\": \"5\"}" },
+                { "type": "string", "content": "{\"object\": \"human\", \"duration\": \"7\"}" }
+            ]
+        },
+        {
+            "name": "example/sensors/movement2",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "{\"object\": \"animal\", \"duration\": \"10\"}" },
+                { "type": "string", "content": "{\"object\": \"animal\", \"duration\": \"4\"}" },
+                { "type": "string", "content": "{\"object\": \"human\", \"duration\": \"5\"}" },
+                { "type": "string", "content": "{\"object\": \"human\", \"duration\": \"7\"}" }
+            ]
+        },
+        {
+            "name": "example/sensors/door1",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "opened" },
+                { "type": "string", "content": "closed" }
+            ]
+        },
+        {
+            "name": "example/sensors/door2",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "opened" },
+                { "type": "string", "content": "closed" }
+            ]
+        },
+        {
+            "name": "example/sensors/ventil1",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "on" },
+                { "type": "string", "content": "off" }
+            ]
+        },
+        {
+            "name": "example/sensors/ventil2",
+            "period": 1,
+            "messages": [
+                { "type": "string", "content": "on" },
+                { "type": "string", "content": "off" }
+            ]
+        }
+    ]
+}

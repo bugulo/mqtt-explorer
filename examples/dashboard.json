@@ -1,0 +1,24 @@
+{
+    "widgets": [
+        {
+            "name": "Thermostat 1",
+            "topic": "example/dashboard/thermostat",
+            "widget": "Thermostat"
+        },
+        {
+            "name": "LCD Display 1",
+            "topic": "example/dashboard/display",
+            "widget": "LcdDisplay"
+        },
+        {
+            "name": "Light 1",
+            "topic": "example/dashboard/light",
+            "widget": "LightSwitch"
+        },
+        {
+            "name": "Security Camera 1",
+            "topic": "example/dashboard/camera",
+            "widget": "SecurityCamera"
+        }
+    ]
+}

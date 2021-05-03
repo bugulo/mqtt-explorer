@@ -1,79 +1,103 @@
+/*!
+ * @file explorer.cpp
+ * @author Michal Šlesár (xslesa01)
+ * @author Erik Belko (xbelko02)
+ * @brief Implementation of Explorer
+ */
+
 #include "explorer.h"
 
-#include <string>
-#include <random>
+#include <algorithm>
 
-#include <QDebug>
-#include <QUuid>
-#include <QFileDialog>
-#include <QBuffer>
-#include <QFileInfo>
+#include <QDir>
 #include <QFile>
+#include <QWidget>
+#include <QString>
+#include <QPixmap>
+#include <QVariant>
+#include <QTextEdit>
 #include <QIODevice>
+#include <QMetaType>
+#include <QByteArray>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMainWindow>
+#include <QPushButton>
+#include <QTreeWidget>
+#include <QListWidget>
+#include <QFileDialog>
+#include <QMessageBox>
 #include <QJsonDocument>
-#include <QSaveFile>
+#include <QTreeWidgetItem>
+#include <QListWidgetItem>
+#include <QTreeWidgetItemIterator>
 
-#include "mqtt/async_client.h"
-
-#include "ui_preview_image.h"
-#include "ui_preview_string.h"
-
-#include "widgets/light_switch/light_switch.h"
-
-#include "extensions/QFlowLayout.h"
+#include "extensions/FlowLayout.h"
 
 #include "widgets/widget.h"
 #include "simulator.h"
 #include "client.h"
+#include "utils.h"
 
-const int MAX_MESSAGES = 5;
+#include "widgets/lcd_display/lcd_display.h"
+#include "widgets/light_switch/light_switch.h"
+#include "widgets/security_camera/security_camera.h"
+#include "widgets/thermostat/thermostat.h"
 
-Explorer::Explorer(QWidget *parent) : QMainWindow(parent)
+#include "ui_preview_image.h"
+#include "ui_preview_string.h"
+
+Explorer::Explorer(int history, QWidget *parent) : QMainWindow(parent)
 {
     setupUi(this);
-
-    qRegisterMetaType<DisconnectReason>();
+    
+    this->history = history;
 
     client = new Client(this);
 
-    connect(client, &Client::disconnected, this, &Explorer::onClientDisconnected, Qt::QueuedConnection);
-    connect(client, &Client::receivedMessage, this, &Explorer::onReceivedMessage, Qt::QueuedConnection);
+    connect(client, &Client::receivedMessage, this, &Explorer::onReceivedMessage);
 
     // Setup button click events
-    connect(buttonSubscribe,        SIGNAL(clicked()), this, SLOT(onSubscribeButtonClicked()));
-    connect(buttonSaveState,        SIGNAL(clicked()), this, SLOT(onSaveStateButtonClicked()));
-    connect(buttonToggleSubscribe,  SIGNAL(clicked()), this, SLOT(onToggleButtonClicked()));
-    connect(buttonConnect,          SIGNAL(clicked()), this, SLOT(onConnectButtonClicked()));
-    connect(buttonPublish,          SIGNAL(clicked()), this, SLOT(onPublishButtonClicked()));
-    connect(buttonDisconnect,       SIGNAL(clicked()), this, SLOT(onDisconnectButtonClicked()));
-    connect(buttonPublishImage,     SIGNAL(clicked()), this, SLOT(onPublishImageButtonClicked()));
-    connect(buttonToggleSimulator,  SIGNAL(clicked()), this, SLOT(onToggleSimulatorButtonClicked()));
+    connect(buttonConnect,          &QPushButton::clicked, this, &Explorer::onConnectButtonClicked);
+    connect(buttonPublish,          &QPushButton::clicked, this, &Explorer::onPublishButtonClicked);
+    connect(buttonSubscribe,        &QPushButton::clicked, this, &Explorer::onSubscribeButtonClicked);
+    connect(buttonSaveState,        &QPushButton::clicked, this, &Explorer::onSaveStateButtonClicked);
+    connect(buttonDisconnect,       &QPushButton::clicked, this, &Explorer::onDisconnectButtonClicked);
+    connect(buttonPublishFile,      &QPushButton::clicked, this, &Explorer::onPublishFileButtonClicked);
+    connect(buttonToggleSimulator,  &QPushButton::clicked, this, &Explorer::onToggleSimulatorButtonClicked);
+    connect(buttonToggleSubscribe,  &QPushButton::clicked, this, &Explorer::onToggleSubscribeButtonClicked);
+
+    connect(buttonAddWidget,        &QPushButton::clicked, this, &Explorer::onAddWidgetButtonClicked);
+    connect(buttonLoadDashboard,    &QPushButton::clicked, this, &Explorer::onLoadDashboardButtonClicked);
+    connect(buttonSaveDashboard,    &QPushButton::clicked, this, &Explorer::onSaveDashboardButtonClicked);
 
     // Setup tree widget selection event
-    connect(topicTree, SIGNAL(itemSelectionChanged()), this, SLOT(onTopicSelected()));
+    connect(topicTree, &QTreeWidget::itemSelectionChanged, this, &Explorer::onTopicSelected);
 
     // Setup message click event in message history
-    connect(topicMessageList, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(onMessageDoubleClicked(QListWidgetItem*)));
-
-    connect(buttonAddWidget,        SIGNAL(clicked()), this, SLOT(onAddWidgetButtonClicked()));
-    connect(buttonLoadDashboard,    SIGNAL(clicked()), this, SLOT(onLoadDashboardButtonClicked()));
-    connect(buttonSaveDashboard,    SIGNAL(clicked()), this, SLOT(onSaveDashboardButtonClicked()));
+    connect(topicMessageList, &QListWidget::itemDoubleClicked, this, &Explorer::onMessageDoubleClicked);
 
     // Hide column that stores topic path
     topicTree->hideColumn(2);
 
     simulator = new Simulator(this);
-    //simulator->start("test.mosquitto.org:1883");
 
-    //connect(simulator, SIGNAL(connectionLost()), this, SLOT(onSimulatorLostConnection()));
-
-    //verticalLayout_3->setAlignment(Qt::AlignTop);
     flowLayout = new FlowLayout();
     scrollAreaWidgetContents_2->setLayout(flowLayout);
 
+    // Register all supported widgets
     registeredWidgets["LightSwitch"] = new WidgetFactory<WidgetLightSwitch>;
+    registeredWidgets["LcdDisplay"] = new WidgetFactory<WidgetLcdDisplay>;
+    registeredWidgets["SecurityCamera"] = new WidgetFactory<WidgetSecurityCamera>;
+    registeredWidgets["Thermostat"] = new WidgetFactory<WidgetThermostat>;
+
+    // Add all registered widgets to dashboard combobox
+    QMapIterator<QString, IWidgetFactory*> i(registeredWidgets);
+    while (i.hasNext()) 
+    {
+        i.next();
+        selectWidgetType->addItem(i.key());
+    }
 }
 
 void Explorer::setStatus(QString message, int seconds)
@@ -84,16 +108,11 @@ void Explorer::setStatus(QString message, int seconds)
 void Explorer::onConnectButtonClicked()
 {
     topicTree->clear();
-    // Reset state of some buttons as topic needs to be selected before being able to push those buttons
-    //buttonToggleSimulator->setText("Start simulator on this server");
-    //inputPublishMessage->setEnabled(false);
-    //buttonToggleSubscribe->setEnabled(false);
-    //buttonPublishImage->setEnabled(false);
-    //buttonPublish->setEnabled(false);
+    clearDashboard();
 
     address = this->inputServerAddress->text();
 
-    setStatus("Connecting to server...");
+    setStatus("Connecting to server...", 0);
     if(!client->connect(address))
     {
         setStatus("Could not connect to this server");
@@ -107,20 +126,27 @@ void Explorer::onConnectButtonClicked()
     setStatus("Successfuly connected to server");
 }
 
-void Explorer::onReceivedMessage(QString topic, QByteArray data, bool local)
+void Explorer::onDisconnectButtonClicked()
 {
-    //QPixmap pixmap;
-    //QVariant variant = (pixmap.loadFromData(data) ? pixmap : QString(data));
+    client->disconnect();
+    simulator->stop();
 
-    // Only binary type that is supported is image, so try to parse it and it
-    // If it is not image, create string from the data
-    QVariant variant;
-    QPixmap pixmap;
-    if(pixmap.loadFromData(data))
-        variant = pixmap;
-    else
-        variant = QString(data);
+    buttonConnect->setEnabled(true);
+    buttonDisconnect->setEnabled(false);
+    inputServerAddress->setEnabled(true);
+    tabWidget->setEnabled(false);
 
+    checkboxRelative->setChecked(false);
+    buttonToggleSubscribe->setEnabled(false);
+    buttonPublishFile->setEnabled(false);
+    buttonPublish->setEnabled(false);
+    buttonToggleSimulator->setText("Start simulator on this server");
+
+    setStatus("Successfuly disconnected from server!");
+}
+
+void Explorer::onReceivedMessage(QString topic, QVariant data, bool local)
+{
     // Try to find topic in topic tree
     auto searchResult = topicTree->findItems(topic, Qt::MatchExactly|Qt::MatchCaseSensitive|Qt::MatchRecursive, 2);
     
@@ -132,9 +158,9 @@ void Explorer::onReceivedMessage(QString topic, QByteArray data, bool local)
     auto topicData = getTopicData(treeTopicItem);
 
     // Only string and image type is supported
-    if(variant.userType() == QMetaType::QString)
-        treeTopicItem->setText(1, qvariant_cast<QString>(variant));
-    else if(variant.userType() == QMetaType::QPixmap)
+    if(data.userType() == QMetaType::QString)
+        treeTopicItem->setText(1, qvariant_cast<QString>(data).simplified());
+    else if(data.userType() == QMetaType::QPixmap)
         treeTopicItem->setText(1, "(Image)");
     else 
         return;
@@ -143,43 +169,19 @@ void Explorer::onReceivedMessage(QString topic, QByteArray data, bool local)
     auto color = local ? QColor(255, 255, 0, 127) : QColor(0, 0, 0, 0);
     treeTopicItem->setBackgroundColor(1, color);
 
-    if(topicData.messages.length() >= MAX_MESSAGES)
+    // If we reached message history limit, remove the oldest message
+    if(topicData.messages.length() >= history)
         topicData.messages.pop_back();
 
-    topicData.messages.prepend(std::make_tuple(variant, local, QDateTime::currentDateTime()));
+    topicData.messages.prepend(std::make_tuple(data, local, QDateTime::currentDateTime()));
     setTopicData(treeTopicItem, topicData);
 
-    emit messageReceived(topic, variant, local);
+    emit messageReceived(topic, data, local);
 
     // Reload message list if this topic is currently selected
     auto selected = getSelectedTopic();
-    if(selected != NULL && selected == treeTopicItem)
+    if(selected != Q_NULLPTR && selected == treeTopicItem)
         reloadMessageList();
-}
-
-void Explorer::onClientDisconnected(DisconnectReason reason)
-{
-    if(reason == DisconnectReason::TerminatedByUser)
-        return;
-        
-    buttonConnect->setEnabled(true);
-    buttonDisconnect->setEnabled(false);
-    inputServerAddress->setEnabled(true);
-    tabWidget->setEnabled(false);
-    //emit disconnected();
-    setStatus("Connection to the server was lost");
-}
-
-void Explorer::onDisconnectButtonClicked()
-{
-    client->disconnect();
-
-    buttonConnect->setEnabled(true);
-    buttonDisconnect->setEnabled(false);
-    inputServerAddress->setEnabled(true);
-    tabWidget->setEnabled(false);
-    //emit disconnected();
-    setStatus("Successfuly disconnected from server!");
 }
 
 void Explorer::onSubscribeButtonClicked()
@@ -191,7 +193,7 @@ void Explorer::onSubscribeButtonClicked()
     {
         auto selected = getSelectedTopic();
     
-        if(selected == NULL)
+        if(selected == Q_NULLPTR)
         {
             setStatus("No topic is selected");
             return;
@@ -203,12 +205,16 @@ void Explorer::onSubscribeButtonClicked()
 
     if(result == 1)
     {
-        setStatus("You most provide topic before trying to subscribe!", 3);
-        return;
+        setStatus("Wildcard in topic is not supported");
     }
     else if(result == 2)
     {
-        setStatus("This topic is already subscribed", 3);
+        setStatus("You most provide topic before trying to subscribe!");
+        return;
+    }
+    else if(result == 3)
+    {
+        setStatus("This topic is already subscribed");
         return;
     }
     else
@@ -217,13 +223,17 @@ void Explorer::onSubscribeButtonClicked()
 
 int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
 {
+    // Wildcards are not supported
+    if(topic.contains("#"))
+        return 1;
+
     // Split specified topic by subtopics, so we can build tree structure
     auto path = topic.split("/", QString::SkipEmptyParts);
 
     if(path.count() == 0) 
-        return 1;
+        return 2;
 
-    auto current = root == NULL ? topicTree->invisibleRootItem() : root;
+    auto current = root == Q_NULLPTR ? topicTree->invisibleRootItem() : root;
 
     for(auto path_i = 0; path_i < path.count(); path_i++) 
     {
@@ -244,10 +254,14 @@ int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
         if(found)
             continue;
 
+        auto targetPath = root == Q_NULLPTR ? 
+            path.mid(0, path_i + 1).join("/") : 
+            root->text(2) + "/" + path.mid(0, path_i + 1).join("/");
+
         TopicData topicData;
         topicData.widgetItem = new QTreeWidgetItem();
-        topicData.widgetItem->setText(0, path[path_i]);
-        topicData.widgetItem->setText(2, path.mid(0, path_i + 1).join("/"));
+        topicData.widgetItem->setText(0, path[path_i].simplified());
+        topicData.widgetItem->setText(2, targetPath);
         setTopicData(topicData.widgetItem, topicData);
 
         // Add new element to tree, expand it and continue path construction from this element
@@ -260,13 +274,11 @@ int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
     auto topicData = getTopicData(current);
 
     if(topicData.isSubscribed)
-        return 2;
+        return 3;
 
     topicData.isSubscribed = true;
     setTopicData(current, topicData);
 
-    // Subscribe to this topic
-    //client->subscribe(current->text(2).toStdString(), 1, mqtt::subscribe_options(true))->wait();
     client->subscribe(current->text(2));
 
     // Make topic name blue so we can easily see which topics are subscribed
@@ -276,11 +288,12 @@ int Explorer::subscribeTopic(QString topic, QTreeWidgetItem *root)
 
 void Explorer::publishData(QString topic, QString data)
 {
-    // Publish text to server as string
-    //client->publish(topic.toStdString(), data.toStdString());
     client->publish(topic, data);
-    // This message won't be received by our client, process it manually
-    //processTopicMessage(topic, data, true);
+}
+
+void Explorer::publishData(QString topic, QByteArray data)
+{
+    client->publish(topic, data);
 }
 
 void Explorer::setTopicData(QTreeWidgetItem* item, TopicData data)
@@ -298,7 +311,7 @@ QTreeWidgetItem* Explorer::getSelectedTopic()
     auto selected = topicTree->selectedItems();
 
     if(selected.count() == 0)
-        return NULL;
+        return Q_NULLPTR;
 
     return selected[0];
 }
@@ -313,7 +326,7 @@ void Explorer::reloadToggleButton()
 {
     auto selected = getSelectedTopic();
     
-    if(selected == NULL)
+    if(selected == Q_NULLPTR)
         return;
 
     auto topicData = getTopicData(selected);
@@ -324,9 +337,8 @@ void Explorer::reloadToggleButton()
     else
         buttonToggleSubscribe->setText("Subscribe selected topic");
 
-    inputPublishMessage->setEnabled(true);
     buttonToggleSubscribe->setEnabled(true);
-    buttonPublishImage->setEnabled(true);
+    buttonPublishFile->setEnabled(true);
     buttonPublish->setEnabled(true);
 }
 
@@ -337,7 +349,7 @@ void Explorer::reloadMessageList()
 
     auto selected = getSelectedTopic();
 
-    if(selected == NULL)
+    if(selected == Q_NULLPTR)
         return;
 
     auto topicData = getTopicData(selected);
@@ -355,7 +367,7 @@ void Explorer::reloadMessageList()
 
         // Only string and image type is supported
         if(data.userType() == QMetaType::QString)
-            text += qvariant_cast<QString>(data);
+            text += qvariant_cast<QString>(data).simplified();
         else if(data.userType() == QMetaType::QPixmap)
             text += "[Image]";
 
@@ -369,11 +381,11 @@ void Explorer::reloadMessageList()
     }
 }
 
-void Explorer::onToggleButtonClicked()
+void Explorer::onToggleSubscribeButtonClicked()
 {
     auto selected = getSelectedTopic();
 
-    if(selected == NULL)
+    if(selected == Q_NULLPTR)
         return;
 
     auto topicData = getTopicData(selected);
@@ -405,97 +417,51 @@ void Explorer::onToggleButtonClicked()
 
 void Explorer::onMessageDoubleClicked(QListWidgetItem* item)
 {
-    // Get object from item, it will be either String or
     auto data = item->data(Qt::UserRole);
 
-    auto dialog = new QDialog();
-    // Create text preview from string
     if(data.userType() == QMetaType::QString)
-    {
-        Ui_PreviewString preview;
-        preview.setupUi(dialog);
-        preview.textBrowser->setText(qvariant_cast<QString>(data));
-    }
-    // Create image preview for image
+        Utils::openText(qvariant_cast<QString>(data), this);
     else if(data.userType() == QMetaType::QPixmap)
-    {
-        Ui_PreviewImage preview;
-        preview.setupUi(dialog);
-        preview.label->setPixmap(qvariant_cast<QPixmap>(data));
-        preview.label->setScaledContents(true);
-    } else
+        Utils::openImage(qvariant_cast<QPixmap>(data), this);
+    else
         return;
-    
-    // Open dialog and wait until it is closed
-    dialog->exec();
 }
 
 void Explorer::onPublishButtonClicked()
 {
     auto selected = getSelectedTopic();
 
-    if(selected == NULL)
-    {
-        setStatus("Select topic before publishing!", 3);
+    if(selected == Q_NULLPTR)
         return;
-    }
 
     auto path = selected->text(2);
 
-    // Publish text to server as string
-    //client->publish(path.toStdString(), inputPublishMessage->text().toStdString());
-    client->publish(path, inputPublishMessage->text());
-
-    // This message won't be received by our client, process it manually
-    //processTopicMessage(path, inputPublishMessage->text(), true);
-
-    // Clear input
-    inputPublishMessage->setText("");
+    client->publish(path, inputPublishMessage->toPlainText());
+    inputPublishMessage->setPlainText("");
 }
 
-void Explorer::onPublishImageButtonClicked()
+void Explorer::onPublishFileButtonClicked()
 {
     auto selected = getSelectedTopic();
 
-    if(selected == NULL)
+    if(selected == Q_NULLPTR)
+        return;
+
+    auto data = Utils::loadFile(this, "Select file", "All files (*)");
+
+    if(data.isEmpty() || data.isNull())
     {
-        setStatus("Select topic before publishing!", 3);
+        setStatus("Failed to read file or file is empty");
         return;
     }
 
-    auto path = QFileDialog::getOpenFileName(this, tr("Open Image"), "/", tr("Image Files (*.png *.jpg *.bmp)"));
-    auto file = QFile(path);
-    
-    if(!file.open(QIODevice::ReadOnly))
-    {
-        setStatus("Failed to read file of provided image");
-        return;
-    }
-
-    // Read whole file into ByteArray and close handler
-    auto data = file.readAll();
-    file.close();
-
-    QPixmap image;
-    // Try to parse this file into pixel map 
-    if(!image.loadFromData(data))
-    {
-        setStatus("Failed to parse provided image");
-        return;
-    }
-
-    // Publish image to server as raw bytes
-    //client->publish(selected->text(2).toStdString(), data.data(), data.size());
     client->publish(selected->text(2), data);
-
-    // This message won't be received by our client, process it manually
-    //processTopicMessage(selected->text(2), image, true);
 }
 
 void Explorer::onSaveStateButtonClicked()
 {
     // Open directory where will be directory structure generated
-    auto path = QFileDialog::getExistingDirectory(this, tr("Open Directory"), "/", QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    auto path = QFileDialog::getExistingDirectory(this, "Select Directory", "", QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 
     if(path.isEmpty())
         return;
@@ -529,26 +495,20 @@ void Explorer::onSaveStateButtonClicked()
         // If the message is string, create text stream to txt file
         if(data.userType() == QMetaType::QString)
         {
-            auto file = QFile(path + "/" + topicPath + "/payload.txt");
-
-            if(!file.open(QIODevice::ReadWrite))
+            if(!Utils::writeFile(path + "/" + topicPath + "/payload.txt", qvariant_cast<QString>(data).toUtf8()))
             {
-                setStatus("Could not create payload file");
+                setStatus("Failed to write to file");
                 return;
             }
-
-            auto stream = QTextStream(&file);
-            stream << qvariant_cast<QString>(data);
-            file.close();
         }
         // If the message is image, save it in JPG format
         else if(data.userType() == QMetaType::QPixmap)
         {
-            auto file = QFile(path + "/" + topicPath + "/payload.jpg");
+            QFile file(path + "/" + topicPath + "/payload.jpg");
 
             if(!file.open(QIODevice::ReadWrite))
             {
-                setStatus("Could not create payload file");
+                setStatus("Failed to write to file");
                 return;
             }
 
@@ -576,16 +536,11 @@ void Explorer::onToggleSimulatorButtonClicked()
     }
 }
 
-void Explorer::onSimulatorLostConnection()
-{
-    buttonToggleSimulator->setText("Start simulator on this server");
-}
-
 // DASHBOARD
 
 void Explorer::onAddWidgetButtonClicked()
 {
-    auto widget = new WidgetLightSwitch(this);
+    auto widget = registeredWidgets[selectWidgetType->currentText()]->create(this);
 
     // Initial setup provided by widget failed
     if(!widget->Setup() || !widget->Render()) 
@@ -600,21 +555,7 @@ void Explorer::onAddWidgetButtonClicked()
 
 void Explorer::onLoadDashboardButtonClicked()
 {
-    auto fileName = QFileDialog::getOpenFileName(this, 
-        tr("Load dashboard configuration"), "", 
-        tr("All files (*)"));
-
-    QFile file(fileName);
-    
-    if(!file.open(QIODevice::ReadOnly))
-    {
-        setStatus("Failed to read file of provided image");
-        return;
-    }
-
-    // Read whole file into ByteArray and close handler
-    auto data = file.readAll();
-    file.close();
+    auto data = Utils::loadFile(this, "Select dashboard configuration", "All files (*)");
 
     auto document = QJsonDocument::fromJson(data);
     if(document.isNull())
@@ -623,13 +564,7 @@ void Explorer::onLoadDashboardButtonClicked()
         return;
     }
 
-    for(auto widget : widgets) 
-    {
-        flowLayout->removeWidget(widget);
-        delete widget;
-    }
-
-    widgets.clear();
+    clearDashboard();
 
     auto array = document.object().value("widgets").toArray();
     for(auto widget : array)
@@ -655,10 +590,6 @@ void Explorer::onLoadDashboardButtonClicked()
 
 void Explorer::onSaveDashboardButtonClicked()
 {
-    auto fileName = QFileDialog::getSaveFileName(this,
-        tr("Save dashboard configuration"), "",
-        tr("All Files (*)"));
-
     QJsonArray array;
     for(auto widget : widgets)
         array.append(widget->ExtractConfig());
@@ -666,14 +597,35 @@ void Explorer::onSaveDashboardButtonClicked()
     QJsonObject result;
     result["widgets"] = array;
     QJsonDocument document(result);
-
-    QSaveFile file(fileName);
-    if(!file.open(QIODevice::WriteOnly))
-    {
+    
+    if(!Utils::saveFile(this, document.toJson(), "Save dashboard configuration", "All Files (*)"))
         setStatus("Failed to save configuration file");
-        return;
+}
+
+void Explorer::clearDashboard()
+{
+    for(auto widget : widgets) 
+    {
+        flowLayout->removeWidget(widget);
+        delete widget;
     }
 
-    file.write(document.toJson());
-    file.commit();
+    widgets.clear();
+}
+
+void Explorer::removeWidget(Widget *widget)
+{
+    widgets.removeOne(widget);
+    flowLayout->removeWidget(widget);
+    delete widget;
+}
+
+Explorer::~Explorer()
+{
+    delete client;
+    delete simulator;
+    delete flowLayout;
+
+    for(auto widget : widgets)
+        delete widget;
 }

@@ -1,3 +1,10 @@
+/*!
+ * @file widget.cpp
+ * @author Michal Šlesár (xslesa01)
+ * @author Erik Belko (xbelko02)
+ * @brief Widget implementation
+ */
+
 #include "widget.h"
 
 #include "../explorer.h"
@@ -6,5 +13,5 @@ Widget::Widget(Explorer* explorer) : QWidget(explorer)
 {
     this->explorer = explorer;
 
-    connect(explorer, SIGNAL(messageReceived(QString, QVariant, bool)), this, SLOT(messageReceived(QString, QVariant, bool)));
+    connect(explorer, &Explorer::messageReceived, this, &Widget::messageReceived);
 }

@@ -1,5 +1,9 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
+    <file>src/resources/icons/cancel.png</file>
+    <file>src/resources/icons/screen.png</file>
+    <file>src/resources/icons/camera.png</file>
     <file>src/resources/icons/light_bulb.png</file>
+    <file>src/resources/icons/thermometer.png</file>
 </qresource>
 </RCC>

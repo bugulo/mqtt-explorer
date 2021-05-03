@@ -1,12 +1,12 @@
 /*!
- * @file light_switch.h
+ * @file lcd_display.h
  * @author Michal Šlesár (xslesa01)
  * @author Erik Belko (xbelko02)
- * @brief Generic Light Switch widget
+ * @brief Generic one line LCD display widget
  */
 
-#ifndef E_WIDGET_LIGHT_SWITCH_H
-#define E_WIDGET_LIGHT_SWITCH_H
+#ifndef E_WIDGET_LCD_DISPLAY_H
+#define E_WIDGET_LCD_DISPLAY_H
 
 #include <QWidget>
 #include <QString>
@@ -17,17 +17,17 @@
 
 #include "../../explorer.h"
 
-#include "ui_light_switch.h"
+#include "ui_lcd_display.h"
 
 // Forward declarations
 class Explorer;
 
 /*! 
- * @brief Widget for controlling generic light switch
+ * @brief Widget for controlling generic one line LCD display
  * 
- * This widget listens on provided topic and accepts only "on" and "off" messages
+ * This widget listens on provided topic and accepts all text messages
  */
-class WidgetLightSwitch : public Widget, public Ui::LightSwitchWidget
+class WidgetLcdDisplay : public Widget, public Ui::LcdDisplayWidget
 {
     Q_OBJECT
 
@@ -36,7 +36,7 @@ public:
      * @brief Constructor
      * @param explorer Explorer instance
      */
-    WidgetLightSwitch(Explorer* explorer);
+    WidgetLcdDisplay(Explorer* explorer);
 
     /*!
      * @brief Setup widget when added to dashboard
@@ -63,10 +63,10 @@ public:
      */
     virtual QJsonObject ExtractConfig() override;
 
-private slots:   
-    //! This slot is called when toggle button is clicked
-    void onToggleButtonClicked();
-
+private slots:
+    //! This slot is cllaed when update button is clicked
+    void onUpdateButtonClicked();
+    
     //! This slot is called when remove button is clicked
     void onRemoveButtonClicked();
 
@@ -84,9 +84,6 @@ private:
 
     //! Topic name
     QString topic;
-
-    //! Whether the switch is turned on or off
-    bool state = false;
 };
 
 #endif

@@ -8,16 +8,19 @@
 #include "client.h"
 
 #include <QUuid>
-#include <QDebug>
 #include <QObject>
 #include <QString>
+#include <QPixmap> 
+#include <QVariant>
 #include <QByteArray>
+
+#include "utils.h"
 
 Client::Client(QObject *parent) : QObject(parent)
 {
     options = mqtt::connect_options_builder()
         .mqtt_version(MQTTVERSION_5)
-        .clean_start(true)
+        .clean_start(false)
         .connect_timeout(std::chrono::milliseconds(5000))
         .finalize();
 }
@@ -39,7 +42,7 @@ bool Client::connect(QString address)
     {
         connection->connect(options)->wait();
     }
-    catch(const std::exception& e) 
+    catch(...) 
     {
         delete connection;
         return false;
@@ -54,67 +57,65 @@ void Client::disconnect()
     if(!connected)
         return;
 
-    connection->disconnect()->wait();
+    if(connection->is_connected())
+        connection->disconnect()->wait();
+        
     connected = false;
     delete connection;
 }
 
-bool Client::subscribe(QString topic)
+void Client::subscribe(QString topic)
 {
     if(!connected || !connection->is_connected())
-        return false;
+        return;
 
     connection->subscribe(topic.toStdString(), 1, mqtt::subscribe_options(true));
-    return true;
 }
 
-bool Client::unsubscribe(QString topic)
+void Client::unsubscribe(QString topic)
 {
     if(!connected || !connection->is_connected())
-        return false;
+        return;
 
     connection->unsubscribe(topic.toStdString());
-    return true;
 }
 
-bool Client::publish(QString topic, QString data)
+void Client::publish(QString topic, QString data)
 {
     if(!connected || !connection->is_connected())
-        return false;
+        return;
 
     connection->publish(topic.toStdString(), data.toStdString());
-    emit receivedMessage(topic, data.toUtf8(), true);
-    return true;
+    emit receivedMessage(topic, data, true);
 }
 
-bool Client::publish(QString topic, QByteArray data)
+void Client::publish(QString topic, QByteArray data)
 {
     if(!connected || !connection->is_connected())
-        return false;
+        return;
 
     connection->publish(topic.toStdString(), data.data(), data.size());
-    emit receivedMessage(topic, data, true);
-    return true;
+    emit receivedMessage(topic, convertByteArray(data), true);
 }
 
 void Client::onDisconnected([[maybe_unused]] mqtt::properties properties, [[maybe_unused]] mqtt::ReasonCode reasonCode)
 {
-    if(!connected)
-        return;
+    qCritical("Connection unexpectedly terminated by server.");
 
-    connected = false;
-    emit disconnected(DisconnectReason::TerminatedByServer);
-    delete connection;
+    // we must exit because of the bug in Paho Eclipse library (most likely) 
+    // we are not able to recover from this situation as the app would freeze forever
+    // exit is absolutely not a good way to handle such situation (especially in multi threaded program)
+    exit(1);
 }
 
 void Client::onConnectionLost([[maybe_unused]] mqtt::string reason)
 {
-    if(!connected)
-        return;
+    qCritical("Connection to server was lost.");
 
-    connected = false;
-    emit disconnected(DisconnectReason::LostConnection);
-    delete connection;
+    // we must exit because of the bug in Paho Eclipse library (most likely) 
+    // we are not able to recover from this situation as the app would freeze forever
+    // exit is absolutely not a good way to handle such situation (especially in multi threaded program)
+    exit(1);
 }
 
 void Client::onMessageReceived(mqtt::const_message_ptr message)
@@ -123,11 +124,25 @@ void Client::onMessageReceived(mqtt::const_message_ptr message)
         return;
 
     auto topic = QString::fromStdString(message->get_topic());
-    auto data = QByteArray::fromRawData(message->get_payload().data(), message->get_payload().length());
-    emit receivedMessage(topic, data, false);
+    auto data = QByteArray::fromRawData(message->get_payload().data(), message->get_payload().size());
+
+    emit receivedMessage(topic, convertByteArray(data), false);
+}
+
+QVariant Client::convertByteArray(QByteArray data)
+{
+    // Only binary type that is supported is image, so try to parse it and it
+    // If it is not image, create string from the data
+    QVariant variant;
+    QPixmap pixmap;
+    if(pixmap.loadFromData(data))
+        return pixmap;
+    
+    return QString(data);
 }
 
 Client::~Client()
 {
-    delete connection;
+    if(connected)
+        delete connection;
 }

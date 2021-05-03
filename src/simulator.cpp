@@ -15,10 +15,9 @@
 #include <QMetaType>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMessageBox>
 #include <QJsonDocument>
 #include <QJsonValueRef>
-
-#include "mqtt/async_client.h"
 
 #include "utils.h"
 #include "client.h"
@@ -28,10 +27,7 @@ Simulator::Simulator(Explorer *explorer) : QObject(explorer), explorer(explorer)
 {
     client = new Client(this);
 
-    connect(&updateTimer, SIGNAL(timeout()), this, SLOT(onTimeout()));
-    //connect(explorer, SIGNAL(disconnected()), this, SLOT(onExplorerDisconnected()));
-
-    connect(client, SIGNAL(disconnected(DisconnectReason)), this, SLOT(onClientDisconnected(DisconnectReason)), Qt::BlockingQueuedConnection);
+    connect(&updateTimer, &QTimer::timeout, this, &Simulator::onTimeout);
 }
 
 bool Simulator::loadConfiguration()
@@ -166,22 +162,8 @@ void Simulator::stop()
     running = false;
     updateTimer.stop();
 
-    // Disconnect MQTT client and delete it
     client->disconnect();
     explorer->setStatus("Simulator stopped!");
-}
-
-void Simulator::onClientDisconnected([[maybe_unused]] DisconnectReason reason)
-{
-    stop();
-
-    if(reason != DisconnectReason::TerminatedByUser)
-        emit crashed();
-}
-
-void Simulator::onExplorerDisconnected()
-{
-    stop();
 }
 
 bool Simulator::isRunning()

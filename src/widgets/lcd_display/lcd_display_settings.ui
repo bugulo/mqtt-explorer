@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>LightSwitchWidgetSettings</class>
- <widget class="QDialog" name="LightSwitchWidgetSettings">
+ <class>LcdDisplayWidgetSettings</class>
+ <widget class="QDialog" name="LcdDisplayWidgetSettings">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Add Light Switch Widget</string>
+   <string>Add LCD Display widget</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="2" column="0">
@@ -29,14 +29,14 @@
      <item row="1" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>Light switch topic:</string>
+        <string>Display topic:</string>
        </property>
       </widget>
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="topic">
        <property name="placeholderText">
-        <string>generic/switch</string>
+        <string>generic/display</string>
        </property>
       </widget>
      </item>
@@ -49,8 +49,11 @@
      </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="name">
+       <property name="text">
+        <string/>
+       </property>
        <property name="placeholderText">
-        <string>Light 1</string>
+        <string>Display 1</string>
        </property>
       </widget>
      </item>
@@ -63,7 +66,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>LightSwitchWidgetSettings</receiver>
+   <receiver>LcdDisplayWidgetSettings</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -79,7 +82,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>LightSwitchWidgetSettings</receiver>
+   <receiver>LcdDisplayWidgetSettings</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

@@ -1,15 +1,16 @@
 /*!
- * @file light_switch.h
+ * @file security_camera.h
  * @author Michal Šlesár (xslesa01)
  * @author Erik Belko (xbelko02)
- * @brief Generic Light Switch widget
+ * @brief Generic Security Camera widget
  */
 
-#ifndef E_WIDGET_LIGHT_SWITCH_H
-#define E_WIDGET_LIGHT_SWITCH_H
+#ifndef E_WIDGET_SECURITY_CAMERA_H
+#define E_WIDGET_SECURITY_CAMERA_H
 
 #include <QWidget>
 #include <QString>
+#include <QPixmap>
 #include <QVariant>
 #include <QJsonObject>
 
@@ -17,17 +18,17 @@
 
 #include "../../explorer.h"
 
-#include "ui_light_switch.h"
+#include "ui_security_camera.h"
 
 // Forward declarations
 class Explorer;
 
 /*! 
- * @brief Widget for controlling generic light switch
+ * @brief Widget for getting images from security camera
  * 
- * This widget listens on provided topic and accepts only "on" and "off" messages
+ * This widget listens on provided topic and accepts all image messages
  */
-class WidgetLightSwitch : public Widget, public Ui::LightSwitchWidget
+class WidgetSecurityCamera : public Widget, public Ui::SecurityCameraWidget
 {
     Q_OBJECT
 
@@ -36,7 +37,7 @@ public:
      * @brief Constructor
      * @param explorer Explorer instance
      */
-    WidgetLightSwitch(Explorer* explorer);
+    WidgetSecurityCamera(Explorer* explorer);
 
     /*!
      * @brief Setup widget when added to dashboard
@@ -63,10 +64,10 @@ public:
      */
     virtual QJsonObject ExtractConfig() override;
 
-private slots:   
-    //! This slot is called when toggle button is clicked
-    void onToggleButtonClicked();
-
+private slots:
+    //! This slot is called when show image button is clicked
+    void onShowImageButtonClicked();
+    
     //! This slot is called when remove button is clicked
     void onRemoveButtonClicked();
 
@@ -85,8 +86,8 @@ private:
     //! Topic name
     QString topic;
 
-    //! Whether the switch is turned on or off
-    bool state = false;
+    //! Last image
+    QPixmap image;
 };
 
 #endif

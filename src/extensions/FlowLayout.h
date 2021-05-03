@@ -1,3 +1,5 @@
+//! Taken from https://code.qt.io/cgit/qt/qtbase.git/tree/examples/widgets/layouts/flowlayout/flowlayout.h?h=5.12
+
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.

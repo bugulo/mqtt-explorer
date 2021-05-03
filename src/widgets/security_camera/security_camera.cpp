@@ -1,13 +1,14 @@
 /*!
- * @file light_switch.cpp
+ * @file security_camera.cpp
  * @author Michal Šlesár (xslesa01)
  * @author Erik Belko (xbelko02)
- * @brief WidgetLightSwitch implementation
+ * @brief WidgetSecurityCamera implementation
  */
 
-#include "light_switch.h"
+#include "security_camera.h"
 
 #include <QString>
+#include <QPixmap>
 #include <QDateTime>
 #include <QPushButton>
 #include <QJsonObject>
@@ -15,34 +16,31 @@
 #include "../../utils.h"
 #include "../../explorer.h"
 
-#include "ui_light_switch_settings.h"
+#include "ui_security_camera_settings.h"
 
-WidgetLightSwitch::WidgetLightSwitch(Explorer* explorer) : Widget(explorer) {}
+WidgetSecurityCamera::WidgetSecurityCamera(Explorer* explorer) : Widget(explorer) {}
 
-void WidgetLightSwitch::onToggleButtonClicked()
+void WidgetSecurityCamera::onShowImageButtonClicked()
 {
-    if(state)
-        explorer->publishData(topic, QString("off"));
-    else
-        explorer->publishData(topic, QString("on"));
+    Utils::openImage(image, explorer);
 }
 
-void WidgetLightSwitch::onRemoveButtonClicked()
+void WidgetSecurityCamera::onRemoveButtonClicked()
 {
     explorer->removeWidget(this);
 }
 
-bool WidgetLightSwitch::Setup(QJsonObject data)
+bool WidgetSecurityCamera::Setup(QJsonObject data)
 {
     name = data.value("name").toString();
     topic = data.value("topic").toString();
     return true;
 }
 
-bool WidgetLightSwitch::Setup()
+bool WidgetSecurityCamera::Setup()
 {
     auto dialog = new QDialog(explorer);
-    Ui_LightSwitchWidgetSettings settings;
+    Ui_SecurityCameraWidgetSettings settings;
     settings.setupUi(dialog);
     Utils::centerWidget(dialog, explorer);
     auto result = dialog->exec();
@@ -54,32 +52,28 @@ bool WidgetLightSwitch::Setup()
     return result;
 }
 
-QJsonObject WidgetLightSwitch::ExtractConfig()
+QJsonObject WidgetSecurityCamera::ExtractConfig()
 {
     QJsonObject result;
-    result.insert("widget", "LightSwitch");
+    result.insert("widget", "SecurityCamera");
     result.insert("name", name);
     result.insert("topic", topic);
     return result;
 }
 
-void WidgetLightSwitch::messageReceived(QString topic, QVariant data, [[maybe_unused]] bool local)
+void WidgetSecurityCamera::messageReceived(QString topic, QVariant data, [[maybe_unused]] bool local)
 {
-    if(this->topic != topic || data.userType() != QMetaType::QString)
+    if(this->topic != topic || data.userType() != QMetaType::QPixmap)
         return;
 
-    auto string = qvariant_cast<QString>(data);
+    image = qvariant_cast<QPixmap>(data);
 
-    if(string != "on" && string != "off")
-        return;
-
-    labelStatus->setText(string);
+    labelStatus->setText("Working");
     labelDate->setText(QDateTime::currentDateTime().toString("HH:mm:ss"));
-
-    state = string == "on" ? true : false;
+    buttonShowImage->setEnabled(true);
 }
 
-bool WidgetLightSwitch::Render()
+bool WidgetSecurityCamera::Render()
 {
     auto result = explorer->subscribeTopic(topic);
 
@@ -93,7 +87,7 @@ bool WidgetLightSwitch::Render()
         explorer->setStatus("Invalid topic format");
         return false;
     }
-
+    
     if(name.isEmpty())
     {
         explorer->setStatus("Widget name can not be empty");
@@ -104,8 +98,7 @@ bool WidgetLightSwitch::Render()
 
     labelName->setText(name);
 
-    connect(buttonToggleSwitch, &QPushButton::clicked, this, &WidgetLightSwitch::onToggleButtonClicked);
-    connect(buttonRemove, &QPushButton::clicked, this, &WidgetLightSwitch::onRemoveButtonClicked);
-
+    connect(buttonRemove, &QPushButton::clicked, this, &WidgetSecurityCamera::onRemoveButtonClicked);
+    connect(buttonShowImage, &QPushButton::clicked, this, &WidgetSecurityCamera::onShowImageButtonClicked);
     return true;
 }

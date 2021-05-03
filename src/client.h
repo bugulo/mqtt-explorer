@@ -10,24 +10,10 @@
 
 #include <QString>
 #include <QObject>
+#include <QVariant>
 #include <QByteArray>
 
 #include "mqtt/async_client.h"
-
-//! Reason of client disconnect
-enum DisconnectReason
-{
-    //! User terminated the connection
-    TerminatedByUser, 
-    //! Server terminated the connection
-    TerminatedByServer,
-    //! Client lost connection to the server
-    LostConnection,
-    //! Unknown error
-    Unknown
-};
-
-Q_DECLARE_METATYPE(DisconnectReason);
 
 //! Eclipse Paho wrapper
 class Client : public QObject
@@ -47,6 +33,7 @@ public:
     /*! 
      * @brief Connect to the specified server
      * @param address Hostname
+     * @returns true when connected successfuly, false otherwise
      */
     bool connect(QString address);
 
@@ -54,53 +41,66 @@ public:
     void disconnect();
     
     /*! 
-     * @brief Subscibe to topic
+     * @brief Subscibe topic
      * @param topic Topic name
      */
-    bool subscribe(QString topic);
+    void subscribe(QString topic);
 
     /*! 
      * @brief Unsubscribe topic
      * @param topic Topic name
      */
-    bool unsubscribe(QString topic);
+    void unsubscribe(QString topic);
 
-    /*! 
-     * @brief Publish string
-     * @param data Data to publish
+    /*!
+     * @brief Publish text to topic
+     * @param topic Topic name
+     * @param data Text
      */
-    bool publish(QString topic, QString data);
+    void publish(QString topic, QString data);
 
-    /*! 
-     * @brief Publish raw data
-     * @param data Data to publish
+    /*!
+     * @brief Publish ByteArray to topic
+     * @param topic Topic name
+     * @param data ByteArray
      */
-    bool publish(QString topic, QByteArray data);
+    void publish(QString topic, QByteArray data);
 
 signals:
     /*! 
-     * @brief The signal is emitted when the client was disconnected from server
-     * @param reason Reason for disconnect
-     */
-    void disconnected(DisconnectReason reason);
-
-    /*! 
-     * @brief The signal is emitted when the client received message
+     * @brief Signal that new message was received
      * @param topic Topic name
-     * @param data Raw data
+     * @param data Image or string
      * @param local Whether the message was sent by this client
      */
-    void receivedMessage(QString topic, QByteArray data, bool local);
+    void receivedMessage(QString topic, QVariant data, bool local);
 
 private:
-    //! Server disconnect callback
+    /*! 
+     * @brief Server disconnect callback
+     * @param properties Properties
+     * @param reasonCode Reason for disconnect
+     */
     void onDisconnected(mqtt::properties properties, mqtt::ReasonCode reasonCode);
 
-    //! Lost connection callback
+    /*! 
+     * @brief Lost connection callback
+     * @param reason Reason for disconnect
+     */
     void onConnectionLost(mqtt::string reason);
 
-    //! Message received callback
+    /*! 
+     * @brief Message received callback
+     * @param message Pointer to message data
+     */
     void onMessageReceived(mqtt::const_message_ptr message);
+
+    /*! 
+     * @brief Convert ByteArray to image or string
+     * @param data Byte array
+     * @returns image or string
+     */
+    QVariant convertByteArray(QByteArray data);
 
     //! MQTT client instance
     mqtt::async_client *connection;

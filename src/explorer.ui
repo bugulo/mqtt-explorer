@@ -7,11 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>788</width>
-    <height>565</height>
+    <height>544</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>MQTT Explorer</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -20,6 +20,9 @@
       <item>
        <widget class="QLineEdit" name="inputServerAddress">
         <property name="text">
+         <string/>
+        </property>
+        <property name="placeholderText">
          <string>test.mosquitto.org:1883</string>
         </property>
        </widget>
@@ -65,10 +68,29 @@
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_7">
                 <item>
-                 <widget class="QLineEdit" name="inputPublishMessage"/>
+                 <widget class="QTextEdit" name="inputPublishMessage">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>60</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>Message</string>
+                  </property>
+                 </widget>
                 </item>
                 <item>
                  <widget class="QPushButton" name="buttonPublish">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
                   <property name="text">
                    <string>Publish</string>
                   </property>
@@ -77,9 +99,12 @@
                </layout>
               </item>
               <item>
-               <widget class="QPushButton" name="buttonPublishImage">
+               <widget class="QPushButton" name="buttonPublishFile">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
-                 <string>Publish image</string>
+                 <string>Publish file</string>
                 </property>
                </widget>
               </item>
@@ -91,10 +116,26 @@
                </widget>
               </item>
               <item>
-               <widget class="QListWidget" name="topicMessageList"/>
+               <widget class="QListWidget" name="topicMessageList">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>1</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="horizontalScrollBarPolicy">
+                 <enum>Qt::ScrollBarAlwaysOff</enum>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QPushButton" name="buttonToggleSimulator">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="text">
                  <string>Start simulator on this server</string>
                 </property>
@@ -151,7 +192,11 @@
                </widget>
               </item>
               <item>
-               <widget class="QLineEdit" name="inputSubscribeTopic"/>
+               <widget class="QLineEdit" name="inputSubscribeTopic">
+                <property name="placeholderText">
+                 <string>topic/subtopic</string>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QPushButton" name="buttonSubscribe">
@@ -181,6 +226,13 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
             <item>
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Widget:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QComboBox" name="selectWidgetType">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -188,11 +240,6 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
-              <item>
-               <property name="text">
-                <string>Light Switch</string>
-               </property>
-              </item>
              </widget>
             </item>
             <item>
@@ -239,7 +286,7 @@
                <x>0</x>
                <y>0</y>
                <width>742</width>
-               <height>365</height>
+               <height>344</height>
               </rect>
              </property>
             </widget>

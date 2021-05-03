@@ -2,7 +2,7 @@
  * @file simulator.h
  * @author Michal Šlesár (xslesa01)
  * @author Erik Belko (xbelko02)
- * @brief MQTT traffic simulation
+ * @brief Traffic simulation
  */
 
 #ifndef E_SIMULATOR_H
@@ -14,8 +14,6 @@
 #include <QObject>
 #include <QTimer>
 #include <QList>
-
-#include "mqtt/async_client.h"
 
 #include "explorer.h"
 #include "client.h"
@@ -31,22 +29,20 @@ public:
     //! Topic name
     QString name;
     
-    //! How often should simulator publish message to the topic (in seconds)
+    //! How often is message published to the topic (in seconds)
     int period;
 
-    //! When was the last message published
+    //! Last time a message was published to this topic
     QDateTime lastSendTime = QDateTime::currentDateTime();
 
-    //! List of messages that Simulator chooses randomly from
+    //! List of possible messages to this topic
     QList<QVariant> messages;
 };
 
 /*!
- * @brief MQTT traffic simulator
+ * @brief Simulation of traffic on MQTT server
  * 
- * User is prompted to select configuration file in JSON format when simulator is first started.
- * Topics are parsed from such file into SimulatorTopic instances.
- * Simulator then publishes random message on specified period for every topic.
+ * Simulator loads configuration from JSON file and then sends random message from list of messages every period
  */
 class Simulator : public QObject
 {
@@ -63,7 +59,7 @@ public:
     ~Simulator();
 
     /*!
-     * @brief Start the simulator on connect it to specified MQTT server
+     * @brief Start the simulator and connect it to specified MQTT server
      *
      * When this function is called the first time, user is prompted to select configuration file
      * 
@@ -79,46 +75,16 @@ public:
     //! This property holds whether the Simulator is running 
     bool isRunning();
 
-signals:
-    //! The signal is emitted when Simulator was unexpectedly disconnected from server
-    void crashed();
-
 private slots:
-    /*! 
-     * @brief Callback for updateTimer timeout signal
-     *
-     * Iterates all registered topics and publishes random message from provided options.
-     */
+    //! This slot is called on every updateTimer tick
     void onTimeout();
-
-
-    void onClientDisconnected(DisconnectReason reason);
-
-    /*! 
-     * @brief Callback for Explorer disconnected signal
-     *
-     * Stops the simulator when client disconnected in Explorer
-     */
-    void onExplorerDisconnected();
 
 private:
     /*! 
-     * @brief Prompts user to select configuration file that will be parsed 
+     * @brief Open FileDialog so user can select configuration file containing list of messages 
      * @returns true if the file was parsed successfuly, false if user did not select file or provided invalid file
      */
     bool loadConfiguration();
-
-    /*!
-     * @brief Called by MQTT client when server closed the connection
-     * @param properties MQTT property list
-     * @param reasonCode Reason of disconnect
-     */
-    void onDisc(mqtt::properties properties, mqtt::ReasonCode reasonCode);
-
-    /*!
-     * @brief Called by MQTT client when client lost the connection
-     */
-    void onConnectionLost(mqtt::string reason);
 
     //! Explorer instance
     Explorer *explorer;
@@ -126,16 +92,16 @@ private:
     //! Client instance
     Client *client;
 
-    //! Timer that runs periodically
+    //! Timer that runs every second
     QTimer updateTimer;
 
     //! List of all registered topics
     QList<SimulatorTopic*> topics;
 
-    //! State of Simulator
+    //! Whether the Simulator is running
     bool running = false;
 
-    //! If user already provided configuration file
+    //! Whtether user already provided configuration file
     bool loaded = false;
 };
 
