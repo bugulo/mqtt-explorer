@@ -11,7 +11,7 @@ Je potrebné špecifikovať konkrétne témy pre odoberanie, podľa absolútneho
 Tieto témy sú následne zobrazované v hierarchickej štruktúre a klient k týmto témam prijíma správy. Poslednú správu zobrazuje v hierarchickej štruktúre tém. 
 Staršie správy sú uložené v histórii správ danej témy, ktorá môže byť obmedzená spúšťacím parametrom --history.
 Ak je pozadie prijatej správy žlté, správa bola odoslaná uživateľom, teda lokálne. Ak je pozadie biele, táto správa bola odoslaná iným uživateľom.
-Položky v hierarchickom zozname označené modrou farbou predstavujú témy, ktoré sú v daný čas odoberané. Položky označené čiernou odoberané niesú.
+Položky v hierarchickom zozname tém označené modrou farbou predstavujú témy, ktoré sú v daný čas odoberané. Položky označené čiernou odoberané niesú.
 Aplikácia sa pokúša každú správu spracovať ako obrázok, ak sa toto spracovanie nepodarí, namiesto obrázku je správa prijatá ako jednoduchý text.
 Po označení témy v hierarchickom zozname tém, sa uživateľovi načíta história prijatých správ pre túto tému a taktiež môže k tejto téme publikovať správu. Táto správa môže byť zadaná manuálne pomocou textového poľa, alebo načítaná zo súboru.
 História správ pre danú tému obsahuje v jednotlivých položkách čas prijatia danej správy a obsah danej správy. Ak je táto správa obrázok, namiesto správy sa ukáže text "Image". Uživateľ má možnosť si každú správu aj obrázok otvoriť v novom okne dvojitým kliknutím.
